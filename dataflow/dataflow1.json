@@ -12,7 +12,15 @@
 					"name": "ADLSG2ds"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzureSynapseAnalyticsTable1",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
 			"transformations": [
 				{
 					"name": "CorrectColumnName"
@@ -21,10 +29,19 @@
 					"name": "FilterMoviesUnder1951"
 				},
 				{
-					"name": "DerivedColumn1"
+					"name": "PrimaryGenre"
+				},
+				{
+					"name": "RankByRatings"
+				},
+				{
+					"name": "AggregateRatings"
+				},
+				{
+					"name": "AlterRow1"
 				}
 			],
-			"script": "source(output(\n\t\tmovie as string,\n\t\ttitle as string,\n\t\tgenres as string,\n\t\tyear as string,\n\t\tRating as string,\n\t\t{Rotton Tomato} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> ADLSG2ds\nADLSG2ds select(mapColumn(\n\t\tmovie,\n\t\ttitle,\n\t\tgenres,\n\t\tyear,\n\t\t{Rotton Tomatoes} = {Rotton Tomato}\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CorrectColumnName\nCorrectColumnName filter(toInteger(year) > 1950) ~> FilterMoviesUnder1951\nFilterMoviesUnder1951 derive(PrimaryGenre = iif(locate(\"|\",genres) > 1, left(genres, locate(\"|\",genres)-1),genres)) ~> DerivedColumn1"
+			"script": "source(output(\n\t\tmovie as string,\n\t\ttitle as string,\n\t\tgenres as string,\n\t\tyear as string,\n\t\tRating as string,\n\t\t{Rotton Tomato} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> ADLSG2ds\nADLSG2ds select(mapColumn(\n\t\tmovie,\n\t\ttitle,\n\t\tgenres,\n\t\tyear,\n\t\t{Rotten Tomato} = {Rotton Tomato}\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CorrectColumnName\nCorrectColumnName filter(toInteger(year) > 1950) ~> FilterMoviesUnder1951\nFilterMoviesUnder1951 derive(PrimaryGenre = iif(locate(\"|\",genres) > 1, left(genres, locate(\"|\",genres)-1),genres)) ~> PrimaryGenre\nPrimaryGenre window(over(PrimaryGenre,\n\t\tyear),\n\tdesc({Rotten Tomato}, true),\n\tRatignsRank = rank()) ~> RankByRatings\nRankByRatings aggregate(groupBy(PrimaryGenre,\n\t\tyear),\n\tAverageRating = avg(toInteger({Rotten Tomato})),\n\t\tHighestRated = first(title),\n\t\tLowestRated = last(title),\n\t\tNumberOfMovies = count()) ~> AggregateRatings\nAggregateRatings alterRow() ~> AlterRow1\nAlterRow1 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:false,\n\tupdateable:false,\n\tupsertable:true,\n\tkeys:['PrimaryGenre','year'],\n\tformat: 'table',\n\tstaged: true,\n\tallowCopyCommand: true,\n\tmapColumn(\n\t\tPrimaryGenre,\n\t\tyear,\n\t\tAverageRating,\n\t\tHighestRated,\n\t\tLowestRated,\n\t\tNumberOfMovies\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink1"
 		}
 	}
 }
