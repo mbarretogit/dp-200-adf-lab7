@@ -9,12 +9,22 @@
 						"referenceName": "ADLSG2",
 						"type": "DatasetReference"
 					},
-					"name": "source1"
+					"name": "ADLSG2ds"
 				}
 			],
 			"sinks": [],
-			"transformations": [],
-			"script": "source(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1"
+			"transformations": [
+				{
+					"name": "CorrectColumnName"
+				},
+				{
+					"name": "FilterMoviesUnder1951"
+				},
+				{
+					"name": "DerivedColumn1"
+				}
+			],
+			"script": "source(output(\n\t\tmovie as string,\n\t\ttitle as string,\n\t\tgenres as string,\n\t\tyear as string,\n\t\tRating as string,\n\t\t{Rotton Tomato} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> ADLSG2ds\nADLSG2ds select(mapColumn(\n\t\tmovie,\n\t\ttitle,\n\t\tgenres,\n\t\tyear,\n\t\t{Rotton Tomatoes} = {Rotton Tomato}\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CorrectColumnName\nCorrectColumnName filter(toInteger(year) > 1950) ~> FilterMoviesUnder1951\nFilterMoviesUnder1951 derive(PrimaryGenre = iif(locate(\"|\",genres) > 1, left(genres, locate(\"|\",genres)-1),genres)) ~> DerivedColumn1"
 		}
 	}
 }
