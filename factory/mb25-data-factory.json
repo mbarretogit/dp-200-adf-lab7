@@ -1,0 +1,9 @@
+{
+	"name": "mb25-data-factory",
+	"location": "centralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "13601e81-1054-410b-9636-44a9d1b7392d",
+		"tenantId": "c669ad0e-27be-47e5-a7be-eac4f16e79ab"
+	}
+}
